@@ -1,0 +1,4 @@
+flask
+gql
+requests
+python-dotenv
