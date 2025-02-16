@@ -3,3 +3,4 @@ flasgger
 gql
 requests
 python-dotenv
+matplotlib

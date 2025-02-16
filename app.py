@@ -17,8 +17,30 @@ from flask import send_file
 # Load environment variables
 load_dotenv()
 app = Flask(__name__)
-swagger = Swagger(app)
+# Custom Swagger configuration
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": "apispec_1",
+            "route": "/apispec_1.json",
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/apidocs/",
+    "info": {
+        "title": "Dashboards",
+        "version": "1.0.0",
+        "description": "API for generating burndown charts from GitHub projects",
+        "termsOfService": "https://github.com/cosminmemetea/dashboards/releases",
+    }
+}
 
+# Initialize Swagger with custom configuration
+swagger = Swagger(app, config=swagger_config)
 # Default configuration from .env
 DEFAULT_GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 DEFAULT_GITHUB_REPO = os.getenv("GITHUB_REPO", "cosminmemetea/dashboards")
