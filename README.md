@@ -50,5 +50,10 @@ Start the Flask application by running:
 
  ```python app.py```
 
-The application will be available at http://127.0.0.1:5000.
-View interactive API documentation at: http://127.0.0.1:5000/apidocs
+- The application will be available at http://127.0.0.1:5000.
+- View interactive API documentation at: http://127.0.0.1:5000/apidocs
+
+## License
+
+This project is **open source** and available for non-commercial use only. It is licensed under the [MIT License with Commons Clause](https://commonsclause.com/).  
+*You may use, modify, and distribute the code freely for non-commercial purposes. Commercial use is not permitted without prior written permission.*

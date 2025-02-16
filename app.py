@@ -36,6 +36,10 @@ swagger_config = {
         "version": "1.0.0",
         "description": "API for generating burndown charts from GitHub projects",
         "termsOfService": "https://github.com/cosminmemetea/dashboards/releases",
+        "license": {
+            "name": "Creative Commons Attribution-NonCommercial 4.0 International License",
+            "url": "https://github.com/cosminmemetea/dashboards/blob/main/LICENSE.md"
+        },
     }
 }
 
