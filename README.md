@@ -12,6 +12,7 @@
   - **HTML Endpoint**: `/generate` returns an HTML table displaying the chart.
   - **Sprints Endpoint**: `/api/sprints` lists available sprints with their start and end dates.
 - **Swagger Documentation**: Interactive API docs available at `/apidocs`.
+![burn](https://github.com/user-attachments/assets/90ab33ad-7a9d-4ce2-93f3-1ade69cb7653)
 
 ## Prerequisites
 
