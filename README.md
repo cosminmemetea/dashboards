@@ -52,8 +52,57 @@ Start the Flask application by running:
 
 - The application will be available at http://127.0.0.1:5000.
 - View interactive API documentation at: http://127.0.0.1:5000/apidocs
+## GitHub Project Configuration
+
+To ensure the dashboards tool works correctly, please set up your GitHub project as follows:
+
+### 1. Milestones
+- **Create Milestones** in your GitHub repository for each sprint or release.
+- **Assign Issues** to a milestone (e.g., "Milestone I").  
+  The script uses the milestone title (from the `.env` file) to filter issues for chart generation.
+
+### 2. GitHub Issues (Tasks)
+- **Create Issues** in your repository to represent your work items.
+- **Task Identification**:  
+  Prefix the title of issues that represent tasks with `"[Task]"`.  
+  This is used by the tool to filter out only the tasks when generating the burndown chart.
+- **Story Points**:  
+  Use a label or a custom field named **"Story Points"** to specify the effort for each task.  
+  The tool expects a numerical value (e.g., `Story Points: 3`) to calculate the total work.
+
+### 3. GitHub Project (Projects v2)
+- **Create a GitHub Project** (using the new Projects v2 interface) for your repository.
+- **Add the Required Custom Fields**:
+  - **Story Points**:  
+    Create a custom field (of type **Field**) named **"Story Points"**.  
+    This field is used to capture the numeric value of each task's effort.
+  - **Sprint**:  
+    Create a custom field of type **Iteration** named **"Sprint"**.  
+    Configure this field with iterations representing your sprints.  
+    Each iteration should include:
+    - **Title**: The sprint name (e.g., "Sprint I").
+    - **Start Date**: The starting date of the sprint (in `YYYY-MM-DD` format).
+    - **Duration**: The number of days in the sprint (this field is used to calculate the end date).
+  
+  The tool will automatically read the iteration information (start date and duration) from the **Sprint** field to determine the sprint timeline.
+
+### 4. Linking Issues to the Project
+- **Add Issues to the GitHub Project**:  
+  Ensure that your task issues (with "[Task]" in the title) are added to the GitHub Project.  
+  This allows the tool to fetch these issues along with their custom field values.
+
+### Summary
+For the dashboards tool to work as intended, your repository should have:
+- **Milestones** defined for grouping issues by sprint or release.
+- **Issues** that are tagged as tasks (with "[Task]" in the title) and assigned to a milestone.
+- A **GitHub Project (Projects v2)** configured with custom fields:
+  - **"Story Points"** (to capture effort)
+  - **"Sprint"** (an Iteration field with properly configured iterations, including start dates and durations)
+
+Following this setup will allow the tool to automatically retrieve sprint dates, compute the burndown chart, and generate visual outputs through the provided API endpoints.
 
 ## License
 
-This project is **open source** and available for non-commercial use only. It is licensed under the [MIT License with Commons Clause](https://commonsclause.com/).  
+This project is **open source** and available for non-commercial use only. It is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).  
 *You may use, modify, and distribute the code freely for non-commercial purposes. Commercial use is not permitted without prior written permission.*
+
