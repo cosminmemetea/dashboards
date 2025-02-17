@@ -4,8 +4,9 @@ import traceback
 from datetime import datetime, timedelta
 from io import BytesIO
 import matplotlib
-
 import requests
+from flask import render_template
+
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template_string, Response
 from flasgger import Swagger
@@ -13,6 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from flask import send_file 
+
 
 # Load environment variables
 load_dotenv()
@@ -664,5 +666,16 @@ def burndown_chart_image():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/ui")
+def ui():
+    # Pass default config values (from .env) to the template
+    return render_template(
+        "index.html",
+        github_token=DEFAULT_GITHUB_TOKEN,
+        github_repo=DEFAULT_GITHUB_REPO,
+        milestone_title=DEFAULT_MILESTONE_TITLE,
+        project_title=DEFAULT_PROJECT_TITLE,
+        sprint_name=DEFAULT_SPRINT_NAME
+    )
 if __name__ == "__main__":
     app.run(debug=True)
