@@ -14,6 +14,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from flask import send_file 
+import json
+
 
 
 # Load environment variables
@@ -664,6 +666,38 @@ def burndown_chart_image():
 
     except Exception as e:
         traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+CONFIG_FILE = "user_config.json"
+
+@app.route("/api/config", methods=["GET"])
+def load_config():
+    """Load configuration from file or create default config if not found."""
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            config = json.load(f)
+    else:
+        # Default configuration based on environment variables
+        config = {
+            "github_token": DEFAULT_GITHUB_TOKEN,
+            "github_repo": DEFAULT_GITHUB_REPO,
+            "milestone_title": DEFAULT_MILESTONE_TITLE,
+            "project_title": DEFAULT_PROJECT_TITLE,
+            "sprint": DEFAULT_SPRINT_NAME
+        }
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(config, f)
+    return jsonify(config)
+
+@app.route("/api/config", methods=["POST"])
+def save_config():
+    """Save configuration provided by the user to a file."""
+    try:
+        config = request.get_json()
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(config, f)
+        return jsonify({"message": "Configuration saved successfully."}), 200
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/ui")
