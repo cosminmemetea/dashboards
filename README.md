@@ -50,8 +50,29 @@ Start the Flask application by running:
 
  ```python app.py```
 
-- The application will be available at http://127.0.0.1:5000.
+- The application will be available at http://127.0.0.1:5000/ui
 - View interactive API documentation at: http://127.0.0.1:5000/apidocs
+
+
+## Packing the application
+
+MacOS
+pyinstaller --name Dashboards \
+            --windowed \
+            --add-data "LICENSE.md:." \
+            --add-data "README.md:." \
+            --hidden-import matplotlib \
+            --hidden-import flasgger \
+            --onefile app.py
+
+Windwos
+pyinstaller --name Dashboards ^
+            --windowed ^
+            --add-data "LICENSE.md;." ^
+            --add-data "README.md;." ^
+            --hidden-import matplotlib ^
+            --hidden-import flasgger ^
+            --onefile app.py
 ## GitHub Project Configuration
 
 To ensure the dashboards tool works correctly, please set up your GitHub project as follows:

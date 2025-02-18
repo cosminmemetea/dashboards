@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from flask import send_file 
 import json
+import numpy as np
 
 
 
@@ -566,6 +567,122 @@ def api_burndown_chart():
         sprints = fetch_project_sprints(project_id)
         chart = compute_burndown_chart(sprint, sprints)
         return jsonify({"chart": chart})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+# NEW ROUTE: Bar Chart Endpoint
+@app.route("/api/burndownchart_image_bars", methods=["GET"])
+def burndown_chart_image_bars():
+    """
+    Generate a bar chart image of the burndown data (Ideal Story Points vs. Daily Closed) per day.
+    ---
+    parameters:
+      - name: github_token
+        in: query
+        type: string
+        description: GitHub personal access token
+      - name: github_repo
+        in: query
+        type: string
+        description: Repository (owner/repo)
+      - name: milestone_title
+        in: query
+        type: string
+        description: Milestone title
+      - name: project_title
+        in: query
+        type: string
+        description: Project title
+      - name: sprint
+        in: query
+        type: string
+        description: Sprint name
+        default: "Sprint I"
+      - name: save_path
+        in: query
+        type: string
+        description: Optional file path to save the image
+        required: false
+    produces:
+      - image/png
+    responses:
+      200:
+        description: PNG image of the bar chart
+    """
+    global GITHUB_TOKEN, GITHUB_REPO, MILESTONE_TITLE, PROJECT_TITLE, repo_owner, repo_name
+    GITHUB_TOKEN = request.args.get("github_token", DEFAULT_GITHUB_TOKEN)
+    GITHUB_REPO = request.args.get("github_repo", DEFAULT_GITHUB_REPO)
+    MILESTONE_TITLE = request.args.get("milestone_title", DEFAULT_MILESTONE_TITLE)
+    PROJECT_TITLE = request.args.get("project_title", DEFAULT_PROJECT_TITLE)
+    sprint = request.args.get("sprint", DEFAULT_SPRINT_NAME)
+    save_path = request.args.get("save_path")
+    
+    try:
+        repo_owner, repo_name = GITHUB_REPO.split("/")
+        HEADERS_REST["Authorization"] = f"token {GITHUB_TOKEN}"
+        HEADERS_GRAPHQL["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    except Exception:
+        return jsonify({"error": "github_repo must be in the format 'owner/repo'"}), 400
+    
+    try:
+        project_id = fetch_project_id()
+        sprints = fetch_project_sprints(project_id)
+        chart_data = compute_burndown_chart(sprint, sprints)
+        if not chart_data:
+            raise Exception("No chart data found")
+        
+        # Use ideal_remaining from day1 as the total ideal story points.
+        total_points = chart_data[0]["ideal_remaining"] if chart_data else 0
+
+        labels = []
+        ideal_points = []
+        cumulative_closed = []
+        daily_closed = []
+        
+        # Compute cumulative closed points for each day (total_points - actual_remaining)
+        for idx, point in enumerate(chart_data):
+            labels.append(f"Day {idx+1}")
+            ideal_points.append(point["ideal_remaining"])
+            cum_closed = total_points - point["actual_remaining"]
+            cumulative_closed.append(cum_closed)
+        
+        # Compute daily closed values as the delta between consecutive days.
+        for i, cum in enumerate(cumulative_closed):
+            if i == 0:
+                daily_closed.append(cum)  # For day 1, use the cumulative value
+            else:
+                delta = cum - cumulative_closed[i - 1]
+                daily_closed.append(delta if delta >= 0 else 0)
+        
+        # Create bar chart using matplotlib and numpy
+        import numpy as np  # Ensure numpy is imported as np
+        fig, ax = plt.subplots(figsize=(10, 6))
+        x = np.arange(len(labels))
+        width = 0.4
+        
+        ax.bar(x - width/2, ideal_points, width, label="Ideal Story Points", color="blue")
+        ax.bar(x + width/2, daily_closed, width, label="Daily Closed", color="red")
+        
+        ax.set_xlabel("Day")
+        ax.set_ylabel("Points")
+        ax.set_title("Daily Ideal Story Points vs. Daily Closed")
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=45)
+        ax.legend()
+        ax.grid(True, axis="y", linestyle="--", alpha=0.7)
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, format="png", bbox_inches="tight")
+            plt.close()
+            return send_file(save_path, mimetype="image/png", as_attachment=True)
+        
+        img_io = BytesIO()
+        plt.savefig(img_io, format="png", bbox_inches="tight")
+        plt.close()
+        img_io.seek(0)
+        return Response(img_io.getvalue(), mimetype="image/png")
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
