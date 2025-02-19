@@ -785,6 +785,150 @@ def burndown_chart_image():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/burndownchart_image_detailed", methods=["GET"])
+def burndown_chart_image_detailed():
+    """
+    Generate a detailed PNG image of the burndown chart with daily data, sprint dates, and completion status based on burned story points.
+    The actual burndown line (red) is rendered only up to the current date.
+    ---
+    parameters:
+      - name: github_token
+        in: query
+        type: string
+        description: GitHub personal access token
+      - name: github_repo
+        in: query
+        type: string
+        description: Repository in the format owner/repo
+      - name: milestone_title
+        in: query
+        type: string
+        description: Milestone title
+      - name: project_title
+        in: query
+        type: string
+        description: Project title
+      - name: sprint
+        in: query
+        type: string
+        description: Sprint name
+        default: "Sprint I"
+      - name: save_path
+        in: query
+        type: string
+        description: Optional file path to save the image
+        required: false
+    produces:
+      - image/png
+    responses:
+      200:
+        description: PNG image of the detailed burndown chart
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+      500:
+        description: Error message
+    """
+    global GITHUB_TOKEN, GITHUB_REPO, MILESTONE_TITLE, PROJECT_TITLE, repo_owner, repo_name
+    GITHUB_TOKEN = request.args.get("github_token", DEFAULT_GITHUB_TOKEN)
+    GITHUB_REPO = request.args.get("github_repo", DEFAULT_GITHUB_REPO)
+    MILESTONE_TITLE = request.args.get("milestone_title", DEFAULT_MILESTONE_TITLE)
+    PROJECT_TITLE = request.args.get("project_title", DEFAULT_PROJECT_TITLE)
+    sprint = request.args.get("sprint", DEFAULT_SPRINT_NAME)
+    save_path = request.args.get("save_path")
+
+    try:
+        repo_owner, repo_name = GITHUB_REPO.split("/")
+        HEADERS_REST["Authorization"] = f"token {GITHUB_TOKEN}"
+        HEADERS_GRAPHQL["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    except Exception:
+        return jsonify({"error": "github_repo must be in the format 'owner/repo'"}), 400
+
+    try:
+        project_id = fetch_project_id()
+        sprints = fetch_project_sprints(project_id)
+        chart = compute_burndown_chart(sprint, sprints)
+
+        # Get sprint start and end dates
+        sprint_start, sprint_end = get_sprint_dates(sprint, sprints)
+        sprint_start_date = datetime.strptime(sprint_start, "%Y-%m-%d")
+        sprint_end_date = datetime.strptime(sprint_end, "%Y-%m-%d")
+        current_date = datetime.now()
+
+        # Prepare data for chart
+        dates = [datetime.strptime(point["date"], "%Y-%m-%d") for point in chart]
+        ideal = [point["ideal_remaining"] for point in chart]
+        actual = [point["actual_remaining"] for point in chart]
+
+        # Calculate total estimated story points (initial ideal remaining)
+        total_estimated_points = ideal[0] if ideal else 0
+
+        # Calculate burned story points (total estimated - actual remaining up to current date)
+        current_date_limit = min(current_date, sprint_end_date)
+        burned_points = 0
+        for i, date in enumerate(dates):
+            if date <= current_date_limit:
+                burned_points = total_estimated_points - actual[i]
+
+        # Calculate sprint completion based on burned points
+        sprint_completion = (burned_points / total_estimated_points * 100) if total_estimated_points > 0 else 0
+
+        # Limit actual data to current date
+        actual_dates = [d for d in dates if d <= current_date_limit]
+        actual_limited = actual[:len(actual_dates)]
+
+        # Create figure
+        fig = plt.figure(figsize=(12, 7))
+        ax = plt.gca()
+
+        # Plot ideal burndown (full sprint, blue line)
+        plt.plot(dates, ideal, label="Ideal Burndown", marker="o", color="blue")
+
+        # Plot actual burndown (up to current date, red line)
+        if actual_dates:
+            plt.plot(actual_dates, actual_limited, label="Actual Burndown", marker="o", color="red")
+
+        # Formatting
+        plt.xlabel("Date")
+        plt.ylabel("Remaining Story Points")
+        plt.title(f"Sprint Burndown Chart - {sprint}")
+        plt.grid(True, linestyle="--", alpha=0.7)
+
+        # Set x-axis to show all dates with proper formatting
+        ax.xaxis.set_major_locator(mdates.DayLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+        plt.xticks(rotation=45)
+
+        # Add sprint info on the left side (adjusted position)
+        info_text = (f"Sprint Start: {sprint_start}\n"
+                     f"Sprint End: {sprint_end}\n"
+                     f"Completion: {sprint_completion:.1f}%")
+        plt.text(0.84, 0.95, info_text, transform=ax.transAxes, fontsize=10,
+                 verticalalignment='top', bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white"))
+
+        # # Move legend to a different position (e.g., top-right)
+        plt.legend(loc="best")
+
+        plt.tight_layout()
+
+        # Save or return image
+        if save_path:
+            plt.savefig(save_path, format="png", bbox_inches="tight")
+            plt.close()
+            return send_file(save_path, mimetype="image/png", as_attachment=True)
+
+        img_io = BytesIO()
+        plt.savefig(img_io, format="png", bbox_inches="tight")
+        plt.close()
+        img_io.seek(0)
+        return Response(img_io.getvalue(), mimetype="image/png")
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500   
+  
 CONFIG_FILE = "user_config.json"
 
 @app.route("/api/config", methods=["GET"])

@@ -107,6 +107,12 @@
         <img id="chartImageBars" src="/api/burndownchart_image_bars?sprint={{ sprint_name }}" class="img-fluid" alt="Bar Chart">
       </div>
     </div>
+    <div class="chart-section">
+      <h2>Detailed Burndown Chart</h2>
+      <div id="detailedChartContainer">
+        <img id="chartImageDetailed" src="/api/burndownchart_image_detailed?sprint={{ sprint_name }}" class="img-fluid" alt="Detailed Burndown Chart">
+      </div>
+    </div>
   </div>
 
   <!-- Bootstrap 5 Bundle with Popper -->
@@ -134,6 +140,10 @@
       // Update Bar Chart
       const newUrlBars = "/api/burndownchart_image_bars?" + params.toString();
       document.getElementById("chartImageBars").src = newUrlBars;
+
+      // Update Detailed Burndown Chart
+      const newUrlDetailed = "/api/burndownchart_image_detailed?" + params.toString();
+      document.getElementById("chartImageDetailed").src = newUrlDetailed;
     }
 
     function loadConfig() {
