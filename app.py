@@ -17,11 +17,10 @@ from flask import send_file
 import json
 import numpy as np
 
-
-
 # Load environment variables
 load_dotenv()
 app = Flask(__name__)
+
 # Custom Swagger configuration
 swagger_config = {
     "headers": [],
@@ -50,6 +49,7 @@ swagger_config = {
 
 # Initialize Swagger with custom configuration
 swagger = Swagger(app, config=swagger_config)
+
 # Default configuration from .env
 DEFAULT_GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 DEFAULT_GITHUB_REPO = os.getenv("GITHUB_REPO", "cosminmemetea/dashboards")
@@ -176,7 +176,7 @@ def fetch_custom_fields(project_id):
     return custom_fields
 
 def fetch_project_issues(project_id, after_cursor=None):
-    """Fetch all issues in the project with pagination."""
+    """Fetch all issues in the project with pagination, including createdAt."""
     query = """
     query {
       node(id: "%s") {
@@ -190,6 +190,7 @@ def fetch_project_issues(project_id, after_cursor=None):
                   title
                   state
                   closedAt
+                  createdAt  # Added to track task creation date
                 }
               }
               fieldValues(first: 20) {
@@ -266,12 +267,14 @@ def extract_story_points(field_values, custom_fields):
     return 0
 
 def get_issues_for_milestone_and_project():
-    """Fetch issues that belong to both milestone and project."""
+    """Fetch issues that belong to both milestone and project, including createdAt."""
     milestone_number = get_milestone_number()
     project_id = fetch_project_id()
     custom_fields = fetch_custom_fields(project_id)
     all_issues = []
     after_cursor = None
+    
+    # Fetch all project issues with pagination
     while True:
         data = fetch_project_issues(project_id, after_cursor)
         items = data["data"]["node"]["items"]["nodes"]
@@ -280,20 +283,27 @@ def get_issues_for_milestone_and_project():
         if not page_info["hasNextPage"]:
             break
         after_cursor = page_info["endCursor"]
+    
+    # Fetch milestone issues via REST API to get numbers
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues?milestone={milestone_number}&state=all&per_page=100"
     response = requests.get(url, headers=HEADERS_REST)
     if response.status_code != 200:
         raise Exception(f"Failed to fetch milestone issues: {response.text}")
     milestone_issues = response.json()
     milestone_issue_numbers = {issue["number"] for issue in milestone_issues}
+    
+    # Filter GraphQL issues by milestone and task title, keeping all fields
     tasks = []
     for item in all_issues:
         if "content" not in item or not item["content"]:
             continue
         issue = item["content"]
-        if issue["number"] in milestone_issue_numbers and "[Task]" in issue["title"]:
+        if (issue["number"] in milestone_issue_numbers and 
+            "[Task]" in issue["title"] and 
+            "createdAt" in issue):  # Ensure createdAt exists
             issue["fieldValues"] = item["fieldValues"]["nodes"]
             tasks.append(issue)
+    
     return tasks, custom_fields
 
 def fetch_project_sprints(project_id):
@@ -351,35 +361,52 @@ def get_sprint_dates(sprint_name, sprints_list=None):
         raise Exception(f"Failed to get sprint dates: {str(e)}")
 
 def compute_burndown_chart(sprint_name, sprints_list=None):
-    """Compute burndown chart data."""
+    """Compute burndown chart data with initial commitment fixed and scope creep applied from creation date."""
     tasks, custom_fields = get_issues_for_milestone_and_project()
     if not tasks:
         raise Exception(f"No tasks found for milestone '{MILESTONE_TITLE}' in project '{PROJECT_TITLE}'")
     
     sprint_start, sprint_end = get_sprint_dates(sprint_name, sprints_list)
-    total_points = sum(extract_story_points(issue["fieldValues"], custom_fields) for issue in tasks)
-    
-    sprint_start_date = datetime.strptime(sprint_start, "%Y-%m-%d")
-    sprint_end_date = datetime.strptime(sprint_end, "%Y-%m-%d")
+    sprint_start_date = datetime.strptime(sprint_start, "%Y-%m-%d").date()
+    sprint_end_date = datetime.strptime(sprint_end, "%Y-%m-%d").date()
     total_days = (sprint_end_date - sprint_start_date).days + 1
     
+    # Initial commitment: Sum story points of tasks created before or on sprint start
+    initial_points = sum(extract_story_points(issue["fieldValues"], custom_fields)
+                         for issue in tasks
+                         if datetime.strptime(issue["createdAt"], "%Y-%m-%dT%H:%M:%SZ").date() <= sprint_start_date)
+    
     chart = []
+    current_total_points = initial_points  # Running total starts with initial commitment
+    
     for day_index in range(total_days):
         current_date = sprint_start_date + timedelta(days=day_index)
-        ideal_remaining = (total_points - (total_points * day_index / (total_days - 1))
-                          if total_days > 1 else total_points)
+        
+        # Ideal remaining decreases linearly from initial commitment
+        ideal_remaining = (initial_points - (initial_points * day_index / (total_days - 1))
+                          if total_days > 1 else initial_points)
+        
+        # Add story points for tasks created up to this date (scope creep)
+        day_points = sum(extract_story_points(issue["fieldValues"], custom_fields)
+                         for issue in tasks
+                         if datetime.strptime(issue["createdAt"], "%Y-%m-%dT%H:%M:%SZ").date() <= current_date)
+        current_total_points = day_points  # Update total to include new tasks up to this day
+        
+        # Calculate completed points up to this date
         completed_points = 0
         for issue in tasks:
             if issue.get("state", "").upper() == "CLOSED" and issue.get("closedAt"):
-                closed_date = datetime.strptime(issue["closedAt"], "%Y-%m-%dT%H:%M:%SZ")
-                if closed_date.date() <= current_date.date():
+                closed_date = datetime.strptime(issue["closedAt"], "%Y-%m-%dT%H:%M:%SZ").date()
+                if closed_date <= current_date:
                     completed_points += extract_story_points(issue["fieldValues"], custom_fields)
-        actual_remaining = total_points - completed_points
+        
+        actual_remaining = current_total_points - completed_points
         chart.append({
             "date": current_date.strftime("%Y-%m-%d"),
             "ideal_remaining": round(ideal_remaining, 2),
-            "actual_remaining": actual_remaining
+            "actual_remaining": max(actual_remaining, 0)  # Ensure no negative values
         })
+    
     return chart
 
 # Routes
@@ -571,44 +598,13 @@ def api_burndown_chart():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# NEW ROUTE: Bar Chart Endpoint
 @app.route("/api/burndownchart_image_bars", methods=["GET"])
 def burndown_chart_image_bars():
     """
-    Generate a bar chart image of the burndown data (Ideal Story Points vs. Daily Closed) per day.
-    ---
-    parameters:
-      - name: github_token
-        in: query
-        type: string
-        description: GitHub personal access token
-      - name: github_repo
-        in: query
-        type: string
-        description: Repository (owner/repo)
-      - name: milestone_title
-        in: query
-        type: string
-        description: Milestone title
-      - name: project_title
-        in: query
-        type: string
-        description: Project title
-      - name: sprint
-        in: query
-        type: string
-        description: Sprint name
-        default: "Sprint I"
-      - name: save_path
-        in: query
-        type: string
-        description: Optional file path to save the image
-        required: false
-    produces:
-      - image/png
-    responses:
-      200:
-        description: PNG image of the bar chart
+    Generate a bar chart image of the burndown data with dates, sprint markers, and open/closed points.
+    Bars show open (red) and closed (blue) story points, with a dashed line for cumulative burned points
+    and a solid trendline for open story points. The first day's open points bar is fixed to the initial
+    commitment, and scope creep appears afterward.
     """
     global GITHUB_TOKEN, GITHUB_REPO, MILESTONE_TITLE, PROJECT_TITLE, repo_owner, repo_name
     GITHUB_TOKEN = request.args.get("github_token", DEFAULT_GITHUB_TOKEN)
@@ -632,44 +628,92 @@ def burndown_chart_image_bars():
         if not chart_data:
             raise Exception("No chart data found")
         
-        # Use ideal_remaining from day1 as the total ideal story points.
-        total_points = chart_data[0]["ideal_remaining"] if chart_data else 0
-
-        labels = []
-        ideal_points = []
-        cumulative_closed = []
-        daily_closed = []
+        # Current date (fixed as per your context)
+        current_date = datetime(2025, 2, 22).date()
         
-        # Compute cumulative closed points for each day (total_points - actual_remaining)
-        for idx, point in enumerate(chart_data):
-            labels.append(f"Day {idx+1}")
-            ideal_points.append(point["ideal_remaining"])
-            cum_closed = total_points - point["actual_remaining"]
-            cumulative_closed.append(cum_closed)
+        # Get sprint dates
+        sprint_start, sprint_end = get_sprint_dates(sprint, sprints)
+        start_date = datetime.strptime(sprint_start, "%Y-%m-%d").date()
+        end_date = datetime.strptime(sprint_end, "%Y-%m-%d").date()
         
-        # Compute daily closed values as the delta between consecutive days.
-        for i, cum in enumerate(cumulative_closed):
-            if i == 0:
-                daily_closed.append(cum)  # For day 1, use the cumulative value
+        # Generate dates excluding weekends up to current date
+        dates = []
+        current = start_date
+        while current <= end_date and current <= current_date:
+            if current.weekday() < 5:  # Monday-Friday only
+                dates.append(current)
+            current += timedelta(days=1)
+        
+        # Initial commitment from day 1 ideal_remaining
+        initial_commitment = chart_data[0]["ideal_remaining"]
+        labels = [d.strftime("%Y-%m-%d") for d in dates]
+        
+        # Initialize with day 1 locked to initial commitment
+        open_points = [initial_commitment]
+        closed_points = [0]
+        cumulative_closed = [0]
+        scope_creep_detected = False
+        
+        # Process days, adjusting for scope creep
+        for i, date in enumerate(dates[1:], start=1):
+            if i < len(chart_data):
+                current_actual = chart_data[i]["actual_remaining"]
+                previous_open = open_points[i-1]
+                
+                # Calculate closed points
+                if current_actual < previous_open:
+                    daily_closed = previous_open - current_actual
+                    closed_points.append(daily_closed)
+                    cumulative_closed.append(cumulative_closed[i-1] + daily_closed)
+                    open_points.append(current_actual)
+                else:
+                    closed_points.append(0)
+                    cumulative_closed.append(cumulative_closed[i-1])
+                    open_points.append(current_actual)
+                
+                # Detect scope creep
+                expected_open = initial_commitment - cumulative_closed[i-1]
+                if current_actual > expected_open:
+                    scope_creep_detected = True
             else:
-                delta = cum - cumulative_closed[i - 1]
-                daily_closed.append(delta if delta >= 0 else 0)
+                open_points.append(open_points[-1])
+                closed_points.append(0)
+                cumulative_closed.append(cumulative_closed[-1])
         
-        # Create bar chart using matplotlib and numpy
-        import numpy as np  # Ensure numpy is imported as np
-        fig, ax = plt.subplots(figsize=(10, 6))
+        # Adjust day 1 if work was completed
+        if chart_data[0]["actual_remaining"] < initial_commitment:
+            closed_points[0] = initial_commitment - chart_data[0]["actual_remaining"]
+            cumulative_closed[0] = closed_points[0]
+        
+        # Sprint completion
+        burned_points = cumulative_closed[-1]
+        sprint_completion = (burned_points / initial_commitment * 100) if initial_commitment > 0 else 0
+        
+        # Create bar chart
+        fig, ax = plt.subplots(figsize=(12, 6))
         x = np.arange(len(labels))
-        width = 0.4
+        width = 0.35
         
-        ax.bar(x - width/2, ideal_points, width, label="Ideal Story Points", color="blue")
-        ax.bar(x + width/2, daily_closed, width, label="Daily Closed", color="red")
+        ax.bar(x - width/2, open_points, width, label="Open Story Points", color="red")
+        ax.bar(x + width/2, closed_points, width, label="Closed Story Points", color="blue")
+        ax.plot(x, open_points, "r-", label="Open Points Trend", linewidth=1.5)
+        ax.plot(x, cumulative_closed, "g--", label="Cumulative Closed", linewidth=2)
         
-        ax.set_xlabel("Day")
-        ax.set_ylabel("Points")
-        ax.set_title("Daily Ideal Story Points vs. Daily Closed")
+        ax.axvline(x=0, color="green", linestyle=":", label="Sprint Start")
+        if end_date <= current_date:
+            ax.axvline(x=len(dates)-1, color="purple", linestyle=":", label="Sprint End")
+        ax.axhline(y=0, color="black", linestyle="-", label="Sprint Completion")
+        ax.axhline(y=initial_commitment, color="orange", linestyle="--", label="Initial Commitment", alpha=0.7)
+        
+        title = f"Burndown Chart - {sprint} (Completion: {sprint_completion:.1f}%)"
+        if scope_creep_detected:
+            title += " [Scope Creep Detected]"
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Story Points")
+        ax.set_title(title)
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=45)
-        ax.legend()
+        ax.legend(loc="best")
         ax.grid(True, axis="y", linestyle="--", alpha=0.7)
         plt.tight_layout()
         
@@ -683,6 +727,7 @@ def burndown_chart_image_bars():
         plt.close()
         img_io.seek(0)
         return Response(img_io.getvalue(), mimetype="image/png")
+    
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -738,7 +783,7 @@ def burndown_chart_image():
     MILESTONE_TITLE = request.args.get("milestone_title", DEFAULT_MILESTONE_TITLE)
     PROJECT_TITLE = request.args.get("project_title", DEFAULT_PROJECT_TITLE)
     sprint = request.args.get("sprint", DEFAULT_SPRINT_NAME)
-    save_path = request.args.get("save_path")  # Get optional save path
+    save_path = request.args.get("save_path")
 
     try:
         repo_owner, repo_name = GITHUB_REPO.split("/")
@@ -908,9 +953,7 @@ def burndown_chart_image_detailed():
         plt.text(0.84, 0.95, info_text, transform=ax.transAxes, fontsize=10,
                  verticalalignment='top', bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white"))
 
-        # # Move legend to a different position (e.g., top-right)
         plt.legend(loc="best")
-
         plt.tight_layout()
 
         # Save or return image
@@ -928,7 +971,7 @@ def burndown_chart_image_detailed():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500   
-  
+
 CONFIG_FILE = "user_config.json"
 
 @app.route("/api/config", methods=["GET"])
@@ -972,5 +1015,6 @@ def ui():
         project_title=DEFAULT_PROJECT_TITLE,
         sprint_name=DEFAULT_SPRINT_NAME
     )
+
 if __name__ == "__main__":
     app.run(debug=True)
