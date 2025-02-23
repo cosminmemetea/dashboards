@@ -1,6 +1,6 @@
 flask
 flasgger
-gql
 requests
 python-dotenv
 matplotlib
+numpy
