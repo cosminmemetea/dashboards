@@ -4,14 +4,19 @@
 
 ## Features
 
-- **Burndown Chart API**: Automatically calculates ideal vs. actual remaining story points over a sprint.
+- **Burndown Chart API**: Automatically calculates ideal vs. actual remaining story points over a sprint, with support for:
+  - Fixed initial commitment based on tasks present at sprint start.
+  - Scope creep detection and visualization starting from the day new tasks are added.
 - **Automatic Sprint Date Retrieval**: Extracts sprint start and end dates from the project's custom "Sprint" iteration field.
 - **Multiple Endpoints**:
   - **JSON Endpoint**: `/api/burndownchart` returns the chart data in JSON format.
   - **Image Endpoint**: `/api/burndownchart_image` returns a PNG image of the burndown chart.
+  - **Detailed Image Endpoint**: `/api/burndownchart_image_detailed` provides a detailed chart with sprint info and completion percentage.
+  - **Bar Chart Endpoint**: `/api/burndownchart_image_bars` generates a bar chart showing open and closed story points, with trendlines and scope creep markers.
   - **Sprints Endpoint**: `/api/sprints` lists available sprints with their start and end dates.
 - **Swagger Documentation**: Interactive API docs available at `/apidocs`.
 ![burn](https://github.com/user-attachments/assets/90ab33ad-7a9d-4ce2-93f3-1ade69cb7653)
+
 
 ## Prerequisites
 
