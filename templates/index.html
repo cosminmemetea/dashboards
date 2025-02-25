@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23121212'/%3E%3Cpath d='M10 38V26h6v12h-6zm10 0V14h6v24h-6zm10 0V18h6v20h-6z' fill='%2339ff14'/%3E%3C/svg%3E">
   <title>Dashboard4Git - Neon Dashboard</title>
-  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
@@ -54,6 +53,27 @@
     .chart-section {
       margin-bottom: 2rem;
     }
+    .chart-placeholder {
+      text-align: center;
+      padding: 2rem;
+      background-color: #1f1f1f;
+      border: 1px solid #39ff14;
+      border-radius: 5px;
+      color: #39ff14;
+      text-shadow: 0 0 5px #39ff14;
+    }
+    .chart-error {
+      color: #ff5555;
+      text-shadow: 0 0 5px #ff5555;
+    }
+    .chart-loading {
+      color: #39ff14;
+      text-shadow: 0 0 5px #39ff14;
+    }
+    .img-fluid {
+      max-width: 100%;
+      height: auto;
+    }
   </style>
 </head>
 <body>
@@ -97,25 +117,24 @@
     <hr>
     <div class="chart-section">
       <h2>Line Chart</h2>
-      <div id="lineChartContainer">
-        <img id="chartImageLine" src="/api/burndownchart_image?sprint={{ sprint_name }}" class="img-fluid" alt="Line Chart">
+      <div id="lineChartContainer" class="chart-placeholder">
+        Charts Not Yet Loaded - Click "Update Charts" to Load
       </div>
     </div>
     <div class="chart-section">
       <h2>Bar Chart</h2>
-      <div id="barChartContainer">
-        <img id="chartImageBars" src="/api/burndownchart_image_bars?sprint={{ sprint_name }}" class="img-fluid" alt="Bar Chart">
+      <div id="barChartContainer" class="chart-placeholder">
+        Charts Not Yet Loaded - Click "Update Charts" to Load
       </div>
     </div>
     <div class="chart-section">
       <h2>Detailed Burndown Chart</h2>
-      <div id="detailedChartContainer">
-        <img id="chartImageDetailed" src="/api/burndownchart_image_detailed?sprint={{ sprint_name }}" class="img-fluid" alt="Detailed Burndown Chart">
+      <div id="detailedChartContainer" class="chart-placeholder">
+        Charts Not Yet Loaded - Click "Update Charts" to Load
       </div>
     </div>
   </div>
 
-  <!-- Bootstrap 5 Bundle with Popper -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     function updateCharts() {
@@ -130,31 +149,47 @@
         github_repo,
         milestone_title,
         project_title,
-        sprint
+        sprint,
+        t: new Date().getTime() // Cache-busting timestamp
       });
       
-      // Update Line Chart
-      const newUrlLine = "/api/burndownchart_image?" + params.toString();
-      document.getElementById("chartImageLine").src = newUrlLine;
-      
-      // Update Bar Chart
-      const newUrlBars = "/api/burndownchart_image_bars?" + params.toString();
-      document.getElementById("chartImageBars").src = newUrlBars;
+      // Function to update a chart container
+      function updateChart(containerId, url, altText) {
+        const container = document.getElementById(containerId);
+        // Show loading message
+        container.innerHTML = '<div class="chart-loading">Loading Chart...</div>';
+        
+        // Create new image element
+        const img = new Image();
+        img.className = 'img-fluid';
+        img.alt = altText;
+        img.onload = function() {
+          // Replace container content with the loaded image
+          container.innerHTML = '';
+          container.appendChild(img);
+        };
+        img.onerror = function() {
+          container.innerHTML = '<div class="chart-error">Failed to Load Chart - Check Config or Server</div>';
+        };
+        // Set src after defining handlers to ensure they catch the events
+        img.src = url;
+      }
 
-      // Update Detailed Burndown Chart
-      const newUrlDetailed = "/api/burndownchart_image_detailed?" + params.toString();
-      document.getElementById("chartImageDetailed").src = newUrlDetailed;
+      // Update charts
+      updateChart("lineChartContainer", "/api/burndownchart_image?" + params.toString(), "Line Chart");
+      updateChart("barChartContainer", "/api/burndownchart_image_bars?" + params.toString(), "Bar Chart");
+      updateChart("detailedChartContainer", "/api/burndownchart_image_detailed?" + params.toString(), "Detailed Burndown Chart");
     }
 
     function loadConfig() {
       fetch('/api/config')
         .then(response => response.json())
         .then(data => {
-           document.getElementById('github_token').value = data.github_token;
-           document.getElementById('github_repo').value = data.github_repo;
-           document.getElementById('milestone_title').value = data.milestone_title;
-           document.getElementById('project_title').value = data.project_title;
-           document.getElementById('sprint').value = data.sprint;
+          document.getElementById('github_token').value = data.github_token;
+          document.getElementById('github_repo').value = data.github_repo;
+          document.getElementById('milestone_title').value = data.milestone_title;
+          document.getElementById('project_title').value = data.project_title;
+          document.getElementById('sprint').value = data.sprint;
         })
         .catch(error => console.error('Error loading config:', error));
     }
