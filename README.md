@@ -16,6 +16,7 @@
   - **Sprints Endpoint**: `/api/sprints` lists available sprints with their start and end dates.
 - **Swagger Documentation**: Interactive API docs available at `/apidocs`.
 ![burn](https://github.com/user-attachments/assets/90ab33ad-7a9d-4ce2-93f3-1ade69cb7653)
+![image](https://github.com/user-attachments/assets/c8b7c112-2d3d-430a-ab8b-7c9e62b0d825)
 
 
 ## Prerequisites
