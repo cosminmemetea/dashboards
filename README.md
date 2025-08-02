@@ -4,7 +4,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 [![Dockerized](https://img.shields.io/badge/docker-ready-blue)](https://hub.docker.com/)
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Flask](https://img.shields.io/badge/Flask-2.3-green)](https://flask.palletsprojects.com/)
 [![Swagger Docs](https://img.shields.io/badge/docs-Swagger-yellow)](http://localhost:5051/apidocs)
 [![Last Commit](https://img.shields.io/github/last-commit/cosminmemetea/dashboards)](https://github.com/cosminmemetea/dashboards)
@@ -142,8 +142,7 @@ See full instructions in the original documentation above for detailed setup.
 ---
 
 ## 📄 License
+MIT – Permissive open-source license allowing free use, modification, and distribution for any purpose, with minimal restrictions.
 
-This project is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
-
-> ⚠️ Non-commercial use only. Contact the author for commercial licensing.
-
+## 🤝 Contributing
+Contributions make this repo better! Whether fixing bugs, adding features, or improving docs, you're welcome. Let's have fun!
