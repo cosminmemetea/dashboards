@@ -1,68 +1,87 @@
-# dashboards
 
-**Generic Dashboards** is a versatile repository designed to enhance your project management experience on GitHub. This repository provides tools to generate burndown charts and other visual analytics tailored specifically for GitHub projects.
+# 📊 dashboards
 
-## Features
+**Generic Dashboards** is a powerful and configurable analytics engine for GitHub Projects (Projects v2). It generates burndown charts and visual analytics tailored to sprint tracking, iteration planning, and velocity monitoring.
 
-- **Burndown Chart API**: Automatically calculates ideal vs. actual remaining story points over a sprint, with support for:
-  - Fixed initial commitment based on tasks present at sprint start.
-  - Scope creep detection and visualization starting from the day new tasks are added.
-- **Automatic Sprint Date Retrieval**: Extracts sprint start and end dates from the project's custom "Sprint" iteration field.
-- **Multiple Endpoints**:
-  - **JSON Endpoint**: `/api/burndownchart` returns the chart data in JSON format.
-  - **Image Endpoint**: `/api/burndownchart_image` returns a PNG image of the burndown chart.
-  - **Detailed Image Endpoint**: `/api/burndownchart_image_detailed` provides a detailed chart with sprint info and completion percentage.
-  - **Bar Chart Endpoint**: `/api/burndownchart_image_bars` generates a bar chart showing open and closed story points, with trendlines and scope creep markers.
-  - **Sprints Endpoint**: `/api/sprints` lists available sprints with their start and end dates.
-- **Swagger Documentation**: Interactive API docs available at `/apidocs`.
-![burn](https://github.com/user-attachments/assets/90ab33ad-7a9d-4ce2-93f3-1ade69cb7653)
-![image](https://github.com/user-attachments/assets/c8b7c112-2d3d-430a-ab8b-7c9e62b0d825)
+---
 
+## 🚀 Features
 
-## Prerequisites
+- **📉 Burndown Chart Generator**
+  - Tracks ideal vs. actual story points.
+  - Scope creep detection with dynamic visualization.
+- **🧠 Automatic Sprint Detection**
+  - Reads `Sprint` iterations from GitHub Projects v2.
+- **🎯 API Endpoints**
+  - `/api/burndownchart`: JSON chart data
+  - `/api/burndownchart_image`: PNG image
+  - `/api/burndownchart_image_detailed`: Detailed annotated PNG
+  - `/api/burndownchart_image_bars`: Open vs Closed SP bar chart
+  - `/api/sprints`: Sprint schedule info
+- **📖 Swagger Docs**: Built-in Flasgger UI at `/apidocs`
+- **🖥️ Optional Web UI** at `/ui`
 
-- Python 3.6+
-- Git
+---
 
-## Setup Instructions
+## 🛠️ Installation
 
-1. **Clone the Repository**
+### 1. Clone the Repo
 
+```bash
+git clone https://github.com/cosminmemetea/dashboards.git
+cd dashboards
+```
 
-   git clone https://github.com/yourusername/dashboards.git
-   cd dashboards
+### 2. Create a Virtual Environment
 
-2. **Create a Virtual Environment**
+```bash
+python3 -m venv env
+source env/bin/activate  # macOS/Linux
+# or
+env\Scripts\activate  # Windows
+```
 
-```python3 -m venv env```
+### 3. Install Dependencies
 
-3. **Activate the Virtual Environment**
+```bash
+pip install -r requirements.txt
+```
 
-- On macOS/Linux:
- ```source env/bin/activate```
+### 4. Run the App
 
-- On Windows (cmd):
- ``` env\Scripts\activate```
+```bash
+python app.py
+```
 
-- On Windows (PowerShell):
- ``` .\env\Scripts\Activate.ps1 ```
+Visit:
+- App UI: [http://127.0.0.1:5000/ui](http://127.0.0.1:5000/ui)
+- API Docs: [http://127.0.0.1:5000/apidocs](http://127.0.0.1:5000/apidocs)
 
-Install Dependencies
- ```pip install -r requirements.txt```
+---
 
-4. **Running the Application**
+## 🧪 cURL API Examples
 
-Start the Flask application by running:
+### ➕ Submit Config
 
- ```python app.py```
+```bash
+curl -X POST http://localhost:5000/api/config \
+  -H "Content-Type: application/json" \
+  -d @user_config.json
+```
 
-- The application will be available at http://127.0.0.1:5000/ui
-- View interactive API documentation at: http://127.0.0.1:5000/apidocs
+### 📊 Get Chart Image
 
+```bash
+curl http://localhost:5000/api/burndownchart_image > chart.png
+```
 
-## Packing the application
+---
 
-MacOS
+## 📦 PyInstaller Packaging
+
+**macOS**
+
+```bash
 pyinstaller --name Dashboards \
             --windowed \
             --add-data "LICENSE.md:." \
@@ -70,8 +89,11 @@ pyinstaller --name Dashboards \
             --hidden-import matplotlib \
             --hidden-import flasgger \
             --onefile app.py
+```
 
-Windwos
+**Windows**
+
+```bash
 pyinstaller --name Dashboards ^
             --windowed ^
             --add-data "LICENSE.md;." ^
@@ -79,57 +101,33 @@ pyinstaller --name Dashboards ^
             --hidden-import matplotlib ^
             --hidden-import flasgger ^
             --onefile app.py
-## GitHub Project Configuration
+```
 
-To ensure the dashboards tool works correctly, please set up your GitHub project as follows:
+---
 
-### 1. Milestones
-- **Create Milestones** in your GitHub repository for each sprint or release.
-- **Assign Issues** to a milestone (e.g., "Milestone I").  
-  The script uses the milestone title (from the `.env` file) to filter issues for chart generation.
+## 🧩 GitHub Project Setup
 
-### 2. GitHub Issues (Tasks)
-- **Create Issues** in your repository to represent your work items.
-- **Task Identification**:  
-  Prefix the title of issues that represent tasks with `"[Task]"`.  
-  This is used by the tool to filter out only the tasks when generating the burndown chart.
-- **Story Points**:  
-  Use a label or a custom field named **"Story Points"** to specify the effort for each task.  
-  The tool expects a numerical value (e.g., `Story Points: 3`) to calculate the total work.
+1. **Milestones**: Define them for sprints/releases.
+2. **Issues**: Add `[Task]` prefix and a numeric `Story Points` label.
+3. **GitHub Projects v2**:
+   - Add `Story Points` (number field).
+   - Add `Sprint` (iteration field).
+4. **Link Issues to the Project**.
 
-### 3. GitHub Project (Projects v2)
-- **Create a GitHub Project** (using the new Projects v2 interface) for your repository.
-- **Add the Required Custom Fields**:
-  - **Story Points**:  
-    Create a custom field (of type **Field**) named **"Story Points"**.  
-    This field is used to capture the numeric value of each task's effort.
-  - **Sprint**:  
-    Create a custom field of type **Iteration** named **"Sprint"**.  
-    Configure this field with iterations representing your sprints.  
-    Each iteration should include:
-    - **Title**: The sprint name (e.g., "Sprint I").
-    - **Start Date**: The starting date of the sprint (in `YYYY-MM-DD` format).
-    - **Duration**: The number of days in the sprint (this field is used to calculate the end date).
-  
-  The tool will automatically read the iteration information (start date and duration) from the **Sprint** field to determine the sprint timeline.
+See full instructions in the original documentation above for detailed setup.
 
-### 4. Linking Issues to the Project
-- **Add Issues to the GitHub Project**:  
-  Ensure that your task issues (with "[Task]" in the title) are added to the GitHub Project.  
-  This allows the tool to fetch these issues along with their custom field values.
+---
 
-### Summary
-For the dashboards tool to work as intended, your repository should have:
-- **Milestones** defined for grouping issues by sprint or release.
-- **Issues** that are tagged as tasks (with "[Task]" in the title) and assigned to a milestone.
-- A **GitHub Project (Projects v2)** configured with custom fields:
-  - **"Story Points"** (to capture effort)
-  - **"Sprint"** (an Iteration field with properly configured iterations, including start dates and durations)
+## 📸 Screenshots
 
-Following this setup will allow the tool to automatically retrieve sprint dates, compute the burndown chart, and generate visual outputs through the provided API endpoints.
+![burn](https://github.com/user-attachments/assets/90ab33ad-7a9d-4ce2-93f3-1ade69cb7653)
+![image](https://github.com/user-attachments/assets/c8b7c112-2d3d-430a-ab8b-7c9e62b0d825)
 
-## License
+---
 
-This project is **open source** and available for non-commercial use only. It is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).  
-*You may use, modify, and distribute the code freely for non-commercial purposes. Commercial use is not permitted without prior written permission.*
+## 📄 License
+
+This project is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+
+> ⚠️ Non-commercial use only. Contact the author for commercial licensing.
 
