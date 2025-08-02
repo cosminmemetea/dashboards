@@ -1,6 +1,17 @@
 
 # 📊 dashboards
 
+
+[![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![Dockerized](https://img.shields.io/badge/docker-ready-blue)](https://hub.docker.com/)
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+[![Flask](https://img.shields.io/badge/Flask-2.3-green)](https://flask.palletsprojects.com/)
+[![Swagger Docs](https://img.shields.io/badge/docs-Swagger-yellow)](http://localhost:5051/apidocs)
+[![Last Commit](https://img.shields.io/github/last-commit/cosminmemetea/dashboards)](https://github.com/cosminmemetea/dashboards)
+[![Issues](https://img.shields.io/github/issues/cosminmemetea/dashboards)](https://github.com/cosminmemetea/dashboards/issues)
+
+---
+
 **Generic Dashboards** is a powerful and configurable analytics engine for GitHub Projects (Projects v2). It generates burndown charts and visual analytics tailored to sprint tracking, iteration planning, and velocity monitoring.
 
 ---
@@ -58,6 +69,11 @@ Visit:
 - API Docs: [http://127.0.0.1:5000/apidocs](http://127.0.0.1:5000/apidocs)
 
 ---
+
+### 5. Docker support
+docker build -t dashboards-app .
+docker run -p 80:80 dashboards-app
+http://localhost/ui 
 
 ## 🧪 cURL API Examples
 
